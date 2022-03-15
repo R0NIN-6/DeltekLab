@@ -1,0 +1,64 @@
+# Create a resource group
+az group create --name Deltek-lab-rg \
+    --location centralus
+
+# Create a virtual network
+az network vnet create --resource-group Deltek-lab-rg \
+    --location centralus \
+    --name DeltekLabVnet \
+    --address-prefixes 10.1.0.0/16 \
+    --subnet-name DeltekLabSubnet \
+    --subnet-prefixes 10.1.0.0/24
+
+# Create a public IP address
+az network public-ip create --resource-group Deltek-lab-rg \
+    --name DeltekLabBastionIP \
+    --sku Standard
+
+# Create Azure Bastion subnet
+az network vnet subnet create --resource-group Deltek-lab-rg \
+    --name AzureBastionSubnet \
+    --vnet-name DeltekLabVnet \
+    --address-prefixes 10.1.1.0/24
+
+# Create an Azure Bastion host
+az network bastion create --resource-group Deltek-lab-rg \
+    --name DeltekLabBastionHost \
+    --public-ip-address DeltekLabBastionIP \
+    --vnet-name DeltekLabVnet \
+    --scale-units 2 \
+    --location centralus
+
+# Create a network security group
+az network nsg create --resource-group Deltek-lab-rg \
+    --name DelteklabNSG
+
+# Create nsg rule
+az network nsg rule create --resource-group Deltek-lab-rg \
+    --nsg-name DelteklabNSG \
+    --name DelteklabNSGRuleHTTP \
+    --protocol '*' \
+    --direction Inbound \
+    --source-address-prefixes '*' \
+    --source-port-ranges '*' \
+    --destination-address-prefixes '*' \
+    --destination-port-ranges 80 \
+    --access Allow \
+    --priority 200
+
+# Create NIC
+az network nic create --resource-group Deltek-lab-rg \
+    --name nicDLS \
+    --vnet-name DeltekLabVnet \
+    --subnet DeltekLabSubnet \
+    --network-security-group DelteklabNSG
+
+# Create the VMs
+az vm create --resource-group Deltek-lab-rg \
+    --name DLSVM1 \
+    --nics nicDLS \
+    --os-disk-name diskDLS \
+    --image Win2019Datacenter \
+    --admin-username alcanto \
+    --zone 1 \
+    --no-wait
